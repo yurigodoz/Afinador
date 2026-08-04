@@ -446,6 +446,18 @@ disponível, validar o B0.
 > **Execução é do Yuri** (exige acesso à VPS e ao DNS). Ponto de atenção do passo 4: entre o nginx
 > e o certbot, a página abre em HTTP e o afinador **não vai funcionar** — vai exibir "Esta página
 > precisa de HTTPS". É o FR-2 trabalhando, não erro de deploy.
+>
+> **Dois ajustes de interface vindos de revisão da tela de erro (Yuri, 2026-08-04):**
+> 1. **Controles escondidos fora do estado inicial.** Na tela de erro a única ação útil é destravar
+>    o acesso ao microfone; oferecer seletor de instrumento e afinação ali dilui a mensagem e sugere
+>    que há algo a configurar quando não há. No estado inicial eles continuam visíveis, onde
+>    escolher o instrumento antes de ligar o microfone evita refazer o grafo depois.
+> 2. **A dica técnica virou condicional ao endereço.** A mensagem de contexto inseguro mandava rodar
+>    `npm run dev:https` — instrução de desenvolvedor que apareceria para qualquer visitante em
+>    produção, passando impressão de site quebrado por descuido. Agora `pareceDesenvolvimento()`
+>    checa o hostname (localhost, 127.0.0.1, faixas privadas 10/172.16–31/192.168) e a dica só sai
+>    para quem pode agir sobre ela. Quatro testes cobrem a distinção, incluindo os limites da faixa
+>    172.16–31 e o caso de `193.168.x` que se parece com privado mas é público.
 - **Size:** S · **Complexity:** low · **Risk:** low
 - **Dependencies:** 10
 - **Requirements:** NFR-5, FR-2

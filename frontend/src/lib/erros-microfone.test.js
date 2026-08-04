@@ -5,6 +5,7 @@ import {
   CODIGO,
   classificarErro,
   descreverErro,
+  pareceDesenvolvimento,
   restricoesDeAudio,
   verificarAmbiente,
 } from './erros-microfone.js';
@@ -79,6 +80,58 @@ test('todo código tem texto com causa e caminho de solução (FR-2)', () => {
 test('código desconhecido cai no texto genérico em vez de undefined', () => {
   const texto = descreverErro('isto-nao-existe');
   assert.equal(texto.titulo, descreverErro(CODIGO.DESCONHECIDO).titulo);
+});
+
+test('reconhece endereços de desenvolvimento', () => {
+  for (const host of [
+    'localhost',
+    'app.localhost',
+    '127.0.0.1',
+    '::1',
+    '192.168.1.44',
+    '10.0.0.7',
+    '172.16.0.1',
+    '172.31.255.254',
+  ]) {
+    assert.equal(pareceDesenvolvimento(host), true, `${host} devia contar como desenvolvimento`);
+  }
+});
+
+test('endereços públicos não são confundidos com desenvolvimento', () => {
+  for (const host of [
+    'afinador.godoz.dev.br',
+    'godoz.dev.br',
+    '172.15.0.1', // logo abaixo da faixa privada
+    '172.32.0.1', // logo acima da faixa privada
+    '11.0.0.1',
+    '193.168.1.1', // parecido com 192.168, mas público
+    '',
+  ]) {
+    assert.equal(pareceDesenvolvimento(host), false, `${host} não é desenvolvimento`);
+  }
+});
+
+test('a dica técnica só aparece em desenvolvimento', () => {
+  // Em produção, mandar o visitante "rodar npm run dev:https" é instrução sem
+  // sentido — e passa a impressão de site quebrado por descuido.
+  const producao = descreverErro(CODIGO.CONTEXTO_INSEGURO);
+  assert.equal(producao.dica, undefined);
+  assert.ok(!producao.comoResolver.includes('npm'));
+
+  const dev = descreverErro(CODIGO.CONTEXTO_INSEGURO, { desenvolvimento: true });
+  assert.ok(dev.dica?.includes('dev:https'));
+  assert.equal(dev.titulo, producao.titulo, 'o texto principal é o mesmo nos dois casos');
+});
+
+test('a dica não vaza para outros erros em desenvolvimento', () => {
+  for (const codigo of Object.values(CODIGO)) {
+    if (codigo === CODIGO.CONTEXTO_INSEGURO) continue;
+    assert.equal(
+      descreverErro(codigo, { desenvolvimento: true }).dica,
+      undefined,
+      `${codigo} não devia ganhar dica`,
+    );
+  }
 });
 
 test('as três flags de processamento de voz vão desligadas (FR-1, D8)', () => {

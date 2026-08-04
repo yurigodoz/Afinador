@@ -14,6 +14,7 @@ import {
   CODIGO,
   classificarErro,
   descreverErro,
+  pareceDesenvolvimento,
   restricoesDeAudio,
   verificarAmbiente,
 } from '@/lib/erros-microfone';
@@ -105,7 +106,9 @@ export function useMicrofone() {
   const timerOcultoRef = useRef(null);
 
   const registrarErro = useCallback((codigo) => {
-    setErro({ codigo, ...descreverErro(codigo) });
+    const desenvolvimento =
+      typeof window !== 'undefined' && pareceDesenvolvimento(window.location?.hostname);
+    setErro({ codigo, ...descreverErro(codigo, { desenvolvimento }) });
     setEstado(ESTADO.ERRO);
   }, []);
 

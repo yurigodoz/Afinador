@@ -95,11 +95,7 @@ const TEXTOS = {
     titulo: 'Esta página precisa de HTTPS',
     mensagem:
       'Navegadores só liberam o microfone em páginas seguras. Este endereço não está em HTTPS.',
-    // O conselho de "use localhost" não serve para o caso mais comum de tropeço:
-    // abrir pelo IP da rede a partir do celular, quando localhost não é opção.
-    comoResolver:
-      'Abra pelo endereço https://. Em desenvolvimento, use localhost na própria máquina ou rode ' +
-      '`npm run dev:https` para acessar pelo IP da rede.',
+    comoResolver: 'Abra o afinador pelo endereço começando com https://.',
   },
   [CODIGO.SEM_SUPORTE]: {
     titulo: 'Navegador sem suporte',
@@ -113,9 +109,46 @@ const TEXTOS = {
   },
 };
 
-/** @returns {{titulo: string, mensagem: string, comoResolver: string}} */
-export function descreverErro(codigo) {
-  return TEXTOS[codigo] ?? TEXTOS[CODIGO.DESCONHECIDO];
+/**
+ * Reconhece endereços que só existem em desenvolvimento.
+ *
+ * Serve para a dica técnica do contexto inseguro aparecer só para quem pode
+ * agir sobre ela. Em produção, mandar o visitante "rodar npm run dev:https"
+ * seria instrução sem sentido — e passa a impressão de que o site está quebrado
+ * por descuido.
+ */
+export function pareceDesenvolvimento(hostname) {
+  if (!hostname) return false;
+  if (hostname === 'localhost' || hostname.endsWith('.localhost')) return true;
+  if (hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]') return true;
+
+  // Faixas privadas: 10.x, 192.168.x e 172.16–31.x
+  if (/^10\./.test(hostname) || /^192\.168\./.test(hostname)) return true;
+  const faixa172 = hostname.match(/^172\.(\d{1,3})\./);
+  if (faixa172) {
+    const segundo = Number(faixa172[1]);
+    return segundo >= 16 && segundo <= 31;
+  }
+
+  return false;
+}
+
+/**
+ * @param {string} codigo
+ * @param {{desenvolvimento?: boolean}} [contexto]
+ * @returns {{titulo: string, mensagem: string, comoResolver: string, dica?: string}}
+ */
+export function descreverErro(codigo, { desenvolvimento = false } = {}) {
+  const texto = TEXTOS[codigo] ?? TEXTOS[CODIGO.DESCONHECIDO];
+
+  if (codigo === CODIGO.CONTEXTO_INSEGURO && desenvolvimento) {
+    return {
+      ...texto,
+      dica: 'Em desenvolvimento: use localhost na própria máquina, ou `npm run dev:https` para abrir pelo IP da rede.',
+    };
+  }
+
+  return texto;
 }
 
 /**

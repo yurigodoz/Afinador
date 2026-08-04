@@ -136,17 +136,27 @@ export default function Afinador() {
   );
 
   if (microfone.estado !== ESTADO.ATIVO) {
+    // Os controles só fazem sentido no estado inicial, onde escolher o
+    // instrumento antes de ligar o microfone evita refazer o grafo depois.
+    //
+    // Em erro e enquanto se pede permissão eles saem da tela: a única ação útil
+    // ali é destravar o acesso ao microfone, e oferecer seletores de afinação
+    // junto dilui essa mensagem — sugere que há algo a configurar quando não há.
+    const podeConfigurar = microfone.estado === ESTADO.INICIAL;
+
     return (
       <div className="w-full space-y-4">
         <PermissaoMicrofone estado={microfone.estado} erro={microfone.erro} aoIniciar={aoIniciar} />
-        <Controles
-          instrumentoId={instrumentoId}
-          afinacaoId={afinacaoId}
-          a4={a4}
-          aoTrocarInstrumento={aoTrocarInstrumento}
-          aoTrocarAfinacao={aoTrocarAfinacao}
-          aoTrocarDiapasao={aoTrocarDiapasao}
-        />
+        {podeConfigurar ? (
+          <Controles
+            instrumentoId={instrumentoId}
+            afinacaoId={afinacaoId}
+            a4={a4}
+            aoTrocarInstrumento={aoTrocarInstrumento}
+            aoTrocarAfinacao={aoTrocarAfinacao}
+            aoTrocarDiapasao={aoTrocarDiapasao}
+          />
+        ) : null}
       </div>
     );
   }

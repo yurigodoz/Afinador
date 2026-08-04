@@ -37,6 +37,12 @@ export default function PermissaoMicrofone({ estado, erro, aoIniciar }) {
           <h2 className="text-base font-semibold text-longe">{erro.titulo}</h2>
           <p className="mt-2 text-sm text-texto-fraco">{erro.mensagem}</p>
           <p className="mt-3 text-sm text-texto">{erro.comoResolver}</p>
+          {/* Dica técnica só aparece em endereço de desenvolvimento. */}
+          {erro.dica ? (
+            <p className="mt-3 rounded-lg bg-fundo px-3 py-2 text-left font-mono text-xs text-texto-fraco">
+              {erro.dica}
+            </p>
+          ) : null}
         </div>
         <Botao variante="secundario" className="mt-5" onClick={aoIniciar}>
           Tentar de novo
