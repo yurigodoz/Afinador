@@ -1,0 +1,25 @@
+{
+  "name": "afinador-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3007",
+    "dev:https": "next dev -p 3007 -H 0.0.0.0 --experimental-https",
+    "build": "next build",
+    "start": "next start -p 3007",
+    "lint": "eslint",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "next": "16.1.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.4",
+    "tailwindcss": "^4"
+  }
+}

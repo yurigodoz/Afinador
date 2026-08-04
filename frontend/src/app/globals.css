@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens do afinador. O mostrador é o elemento dominante da tela (NFR-7), então
+ * a paleta é escura e dessaturada de propósito: o verde do "afinado" precisa ser
+ * a única coisa que salta à vista quando acontece.
+ */
+@theme {
+  --color-fundo: #0b0f14;
+  --color-superficie: #131a22;
+  --color-borda: #223040;
+  --color-texto: #e8eef5;
+  --color-texto-fraco: #8fa3b8;
+
+  --color-afinado: #35d399;
+  --color-proximo: #e9c46a;
+  --color-longe: #ef6461;
+  --color-inativo: #3b4a5c;
+}
+
+html,
+body {
+  overscroll-behavior: none;
+}
