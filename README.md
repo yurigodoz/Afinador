@@ -1,18 +1,53 @@
 # Afinador
 
-Afinador cromático de violão, guitarra e baixo que roda no navegador, pelo microfone do próprio
+Afinador cromático de **violão, guitarra e baixo** que roda no navegador, pelo microfone do próprio
 dispositivo. Sem instalar nada, e o áudio nunca sai do aparelho.
 
+Você toca as cordas soltas e ele acompanha: detecta a nota, reconhece qual corda é, mostra o desvio
+em cents e diz se é para apertar ou afrouxar.
+
 **Produção:** `afinador.godoz.dev.br` · **Dev:** `localhost:3007`
+
+## Estado
+
+Waves 0 a 3 concluídas — o afinador está funcional. **105 testes automatizados**, lint limpo, build
+gerando três rotas estáticas.
+
+| Etapa | Situação |
+|---|---|
+| Motor de detecção (YIN) | ✅ ≤ 1 cent nas 26 frequências dos presets |
+| Captura de áudio | ✅ verificado em desktop e Android |
+| Mostrador e cordas | ✅ violão real, conferido contra o afinador do Google |
+| Presets, diapasão, tom de referência | ✅ código pronto |
+| Baixo em instrumento real | ⏳ não testado — só tons sintéticos ([D21](specs/2026-08-03-afinador-violao/decisions.md)) |
+| Safari no iPhone | ⏳ pendente |
+| Deploy | ⏳ arquivos prontos, ver [DEPLOY.md](DEPLOY.md) |
+
+Detalhe por task em [`specs/2026-08-03-afinador-violao/tasks.md`](specs/2026-08-03-afinador-violao/tasks.md).
+
+## Funcionalidades
+
+- **Detecção automática de corda** — dedilhe e o afinador identifica qual das cordas você tocou.
+- **Travar corda** — para quando a corda está tão desafinada que fica mais perto da vizinha.
+- **10 presets:** violão (padrão E, Drop D, meio tom abaixo, um tom abaixo, DADGAD, Open G), baixo
+  de 4 cordas (padrão, Drop D, meio tom abaixo) e baixo de 5 cordas (padrão B).
+- **Diapasão ajustável** de 415 a 466 Hz.
+- **Tom de referência** por corda; alvos abaixo de 60 Hz soam uma oitava acima, porque alto-falante
+  de celular não reproduz 30–40 Hz.
+- **Preferências salvas** entre visitas, no próprio navegador.
+- **Página `/diagnostico`** — taxa do dispositivo, nível de entrada e parâmetros do perfil ativo.
+  Existe para suporte remoto: transforma "não funcionou no meu celular" em dado utilizável.
 
 ## Como rodar
 
 ```powershell
 cd frontend; npm install
 cd frontend; npm run dev     # http://localhost:3007
-cd frontend; npm test        # suíte de tons sintéticos
+cd frontend; npm test        # 105 testes, sem navegador
 cd frontend; npm run lint
 ```
+
+Não há backend, banco nem variável de ambiente para configurar.
 
 ## Testando no celular
 
@@ -38,22 +73,70 @@ instale o perfil em *Ajustes → Geral → VPN e Gerenciamento de Dispositivos* 
 confiança total em *Ajustes → Geral → Sobre → Configurações de Confiança do Certificado*.
 
 Vale lembrar que HTTPS não é detalhe de desenvolvimento: em produção ele é pré-requisito, porque sem
-ele o `getUserMedia` simplesmente não existe (`specs/.../decisions.md` D9).
+ele o `getUserMedia` simplesmente não existe (`decisions.md` D9).
 
 ## Estrutura
 
 ```
-frontend/src/lib/      módulos puros — rodam em Node, sem navegador nem React
-frontend/src/hooks/    captura de áudio e laço de análise (Wave 1+)
-frontend/src/components/  interface (Wave 2+)
-specs/                 requisitos, design, tasks e decisões
+frontend/src/lib/         módulos puros — rodam em Node, sem navegador nem React
+  instrumentos.js         instrumentos, perfis de análise e presets (cordas por número MIDI)
+  preferencias.js         validação do que veio do localStorage
+  erros-microfone.js      classificação e texto dos erros de permissão
+  pitch/yin.js            detecção de altura
+  pitch/decimate.js       decimação e porta de silêncio
+  pitch/smoothing.js      mediana, suavização e histerese
+  pitch/cents.js          desvio em cents e escolha da corda
+  pitch/leitura.js        do que foi detectado para o que a tela mostra
+  pitch/referencia.js     regra da oitava no tom de referência
+frontend/src/hooks/       efeito colateral de áudio e ciclo de vida do React
+frontend/src/components/  interface
+specs/                    requisitos, design, tasks e decisões
+DEPLOY.md                 publicação na VPS
 ```
 
-A regra que sustenta o projeto: **nada em `src/lib` toca `window`, `AudioContext` ou React.** É o
-que permite validar a precisão do detector com tons sintéticos, sem microfone — e há um teste que
-falha se alguém quebrar isso.
+## Como funciona
 
-## Estado
+```
+getUserMedia (sem echoCancellation / noiseSuppression / autoGainControl)
+  → highpass → [notch 50/60 Hz, só no baixo] → lowpass → AnalyserNode
+  → decimação → YIN → mediana móvel → suavização em cents → histerese → tela
+```
 
-Wave 0 concluída: motor de detecção de altura implementado e testado (51 testes). A interface
-começa na Wave 2. Ver `specs/2026-08-03-afinador-violao/tasks.md`.
+Três coisas explicam a maior parte do desenho, e todas têm justificativa numérica em
+[`decisions.md`](specs/2026-08-03-afinador-violao/decisions.md):
+
+**Autocorrelação, não FFT.** Com janela de 4096 a 48 kHz a resolução espectral é 11,7 Hz, enquanto
+1 cent vale 0,048 Hz no E2 e 0,018 Hz no B0. Chegar lá por FFT exigiria janelas de vários segundos.
+
+**Perfil por instrumento.** A corda mais grave do baixo de 5 (B0 = 30,87 Hz) está mais de uma oitava
+abaixo da do violão. O baixo usa janela de 170 ms contra 85 ms do violão, e ganha notches de 50/60 Hz
+— o zumbido de rede cai *entre* A1 (55 Hz) e D2 (73,42 Hz), então um highpass que o removesse levaria
+as duas cordas graves junto.
+
+**Janela em tempo, não em amostras.** `AudioContext.sampleRate` é escolha do hardware. Janela fixa em
+amostras cobre menos tempo quanto maior a taxa — a 96 kHz o violão caía para 2,8 períodos da nota
+mais grave. O que é constante é a duração.
+
+## A regra que sustenta o projeto
+
+**Nada em `src/lib` toca `window`, `AudioContext` ou React.**
+
+É o que permite validar a precisão do detector com tons sintéticos, em Node, sem microfone nem
+navegador — e é essa suíte que sustenta a garantia de 1 cent. `src/lib/pureza.test.js` falha se
+alguém quebrar a regra, inclusive pelo alias `@/`, que depende do bundler.
+
+Efeito colateral de áudio vive em `src/hooks`; interface, em `src/components`.
+
+## Testes
+
+```powershell
+cd frontend; npm test
+```
+
+Rodam em Node puro, sem navegador. Cobrem a precisão do detector com tons sintéticos — incluindo
+timbre de baixo com fundamental atenuada, que é onde a autocorrelação ingênua erra a oitava —, as
+três taxas de amostragem comuns, a lógica de qual corda mostrar, a suavização e os erros de permissão.
+
+Alguns testes existem por causa de bug encontrado em instrumento real e ficam como regressão. O mais
+instrutivo é o do E2 medido contra o D3: por retenção de leitura, o mostrador acusava −1000 cents com
+o ponteiro cravado — número correto descrevendo um som que já tinha acabado.
