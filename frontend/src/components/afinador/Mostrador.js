@@ -149,25 +149,32 @@ const Mostrador = forwardRef(function Mostrador(
         </g>
       </svg>
 
+      {/*
+        Alturas fixas nas linhas variáveis.
+        Sem isto, a linha "corda N" só existe quando há sinal, e o bloco inteiro
+        cresce no instante em que o usuário toca a corda — justamente quando ele
+        está olhando para o ponteiro. O conteúdo mudar de lugar embaixo do olho é
+        pior que um espaço vazio parado.
+      */}
       <div className="-mt-6 flex flex-col items-center">
         <span
-          className={`font-mono text-6xl leading-none font-semibold tabular-nums ${corDoEstado}`}
+          className={`flex h-16 items-center font-mono text-6xl leading-none font-semibold tabular-nums ${corDoEstado}`}
         >
           {nota ?? '––'}
         </span>
 
-        {detalheCorda ? (
-          <span className="mt-2 text-sm text-texto-fraco">{detalheCorda}</span>
-        ) : null}
+        <span className="mt-2 flex h-5 items-center text-sm text-texto-fraco">
+          {detalheCorda ?? ' '}
+        </span>
 
-        <div className="mt-3 flex items-baseline gap-2">
+        <div className="mt-3 flex h-7 items-baseline gap-2">
           <span ref={centsRef} className="font-mono text-lg tabular-nums text-texto">
             —
           </span>
           <span className="text-sm text-texto-fraco">cents</span>
         </div>
 
-        <span className={`mt-1 text-sm font-medium ${corDoEstado}`}>{rotulo}</span>
+        <span className={`flex h-6 items-center text-sm font-medium ${corDoEstado}`}>{rotulo}</span>
       </div>
     </div>
   );

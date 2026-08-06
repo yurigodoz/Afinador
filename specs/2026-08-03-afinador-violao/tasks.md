@@ -447,6 +447,54 @@ disponível, validar o B0.
 > e o certbot, a página abre em HTTP e o afinador **não vai funcionar** — vai exibir "Esta página
 > precisa de HTTPS". É o FR-2 trabalhando, não erro de deploy.
 >
+> **Três correções vindas de uso real no Android, já com o site no ar (Yuri, 2026-08-04):**
+> 1. **Subtítulo preso em "Violão · afinação padrão".** Estava no `page.js`, que é componente de
+>    servidor e não enxerga as preferências do usuário. Removido em vez de sincronizado: a barra de
+>    controles já mostra instrumento e afinação, e exibir a mesma informação em dois lugares só cria
+>    a chance de um deles mentir.
+> 2. **Salto de layout ao detectar som.** A linha "corda N" só existia quando havia sinal, então o
+>    bloco inteiro crescia no instante em que o usuário tocava a corda — exatamente quando ele está
+>    olhando para o mostrador. As linhas variáveis passaram a ter altura fixa. Achado por comparação
+>    entre duas capturas de tela; não apareceria em teste automatizado.
+> 3. **Tom de referência virou alternador.** Era tocar-enquanto-segura. No celular isso disputa com
+>    a rolagem e, pior, prende a mão no botão justamente quando ela precisa girar a tarraxa. Agora é
+>    clicar para ligar e clicar para desligar, com o rótulo virando "Parar <nota>" e `aria-pressed`
+>    refletindo o estado.
+>
+> **Dois bugs criados pelo alternador, corrigidos em seguida (Yuri, 2026-08-04):**
+> - **O tom não seguia a troca de corda.** Selecionar outra corda com o tom soando deixava o
+>   oscilador na nota anterior enquanto a tela já mostrava outra — a pior combinação numa ferramenta
+>   de referência, porque o usuário confia no ouvido e afina para a nota errada. Agora o tom
+>   acompanha a seleção. Feito no manipulador do toque, não em efeito, para não gerar render em
+>   cascata.
+> - **Corda marcada como afinada pelo próprio tom de referência.** O tom sai na frequência-alvo
+>   exata; se a detecção o medir, dá 0 cents e a corda é confirmada com base no som que o afinador
+>   emitiu. A suspensão da detecção enquanto o tom soa **não cobre a cauda**: rampa de 15 ms do
+>   envelope, alto-falante e ressonância da sala continuam soando depois do comando de parar.
+>   Adicionada uma janela de 600 ms após o fim do tom em que nenhuma corda pode ser marcada.
+>
+>   **Essa primeira correção não funcionou** — e o motivo é aritmético, não circunstancial. Yuri
+>   filmou a tela: acionando só o tom de referência de cada corda, **as seis eram marcadas como
+>   afinadas sem o violão ser tocado**. A janela de bloqueio era de 600 ms, mas a confirmação de
+>   afinado leva 700 ms. A cauda do tom seguia alimentando leituras de 0 cent, a confirmação
+>   completava aos 700 ms e a proteção já tinha expirado aos 600. **Guarda mais curta que o evento
+>   que deveria impedir não protege nada.**
+>
+>   **Correção definitiva:** em vez de bloquear a marcação, a detecção passa a ficar **suspensa
+>   durante o tom e por mais 900 ms depois dele** (`silenciando` em `useTomReferencia`). Os quadros
+>   do eco nunca chegam ao confirmador, e ao retomar o laço é remontado do zero — o temporizador
+>   recomeça. O que não é medido não pode virar confirmação.
+>
+>   Três testes em `autoafinacao.test.js` travam isso, sendo o principal a relação entre as duas
+>   janelas: acomodação **tem de ser maior** que a confirmação, com pelo menos 100 ms de folga. Outro
+>   verifica por comportamento que a confirmação segue em 700 ms, para o primeiro teste não comparar
+>   com um número desatualizado.
+>
+> **Mantido de propósito:** o botão "Ouvir referência" fica **desabilitado enquanto nenhuma corda
+> está selecionada** — é preciso tocar uma corda ou travá-la na lista para habilitar. Levantei isso
+> como possível melhoria (o caso natural seria ouvir a nota *antes* de conseguir tirá-la) e o usuário
+> decidiu deixar como está. **Não "corrigir" depois sem combinar.**
+>
 > **Dois ajustes de interface vindos de revisão da tela de erro (Yuri, 2026-08-04):**
 > 1. **Controles escondidos fora do estado inicial.** Na tela de erro a única ação útil é destravar
 >    o acesso ao microfone; oferecer seletor de instrumento e afinação ali dilui a mensagem e sugere

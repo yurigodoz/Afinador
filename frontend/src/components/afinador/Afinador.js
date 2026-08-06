@@ -60,10 +60,15 @@ export default function Afinador() {
   }, []);
 
   const { leitura } = useDeteccaoAltura({
-    // O tom de referência sai pelo alto-falante e voltaria pelo microfone: o
-    // afinador mediria o próprio tom (FR-13). Suspender a detecção enquanto soa
-    // é mais simples e mais confiável que tentar filtrar depois.
-    ativo: microfone.ativo && !referencia.tocando,
+    // O tom de referência sai pelo alto-falante e volta pelo microfone na
+    // frequência-alvo exata — se medido, dá 0 cents e o afinador confirma a
+    // corda com base no próprio som (FR-13).
+    //
+    // `silenciando` cobre o tom **e a cauda dele**. A suspensão precisa durar
+    // mais que os 700 ms de confirmação de afinado; do contrário o eco completa
+    // a confirmação sozinho. Ao voltar, o laço é remontado do zero, então o
+    // temporizador recomeça — nenhuma leitura do tom sobrevive à retomada.
+    ativo: microfone.ativo && !referencia.silenciando,
     obterAnalisador: microfone.obterAnalisador,
     obterSampleRate: microfone.obterSampleRate,
     perfil: instrumento.perfil,
@@ -135,6 +140,29 @@ export default function Afinador() {
     [cordas, cordaTravada, leitura.corda],
   );
 
+  /**
+   * Selecionar outra corda com o tom de referência soando.
+   *
+   * O oscilador não fica sabendo que o alvo mudou — continuaria tocando a nota
+   * anterior enquanto a tela mostra outra, que é a pior combinação possível numa
+   * ferramenta de referência: o usuário confia no ouvido e afina para a nota
+   * errada. Então o tom acompanha a seleção.
+   *
+   * Feito no manipulador do toque, e não num efeito: efeito que chama `setState`
+   * gera render em cascata, e aqui a causa é literalmente um clique.
+   */
+  const aoTravar = useCallback(
+    (id) => {
+      setCordaTravada(id);
+      if (!referencia.tocando) return;
+
+      const nova = id ? cordas.find((c) => c.id === id) : null;
+      if (nova) referencia.tocar(nova);
+      else referencia.parar();
+    },
+    [cordas, referencia],
+  );
+
   if (microfone.estado !== ESTADO.ATIVO) {
     // Os controles só fazem sentido no estado inicial, onde escolher o
     // instrumento antes de ligar o microfone evita refazer o grafo depois.
@@ -187,7 +215,7 @@ export default function Afinador() {
         cordaAtiva={leitura.corda?.id ?? null}
         cordaTravada={cordaTravada}
         cordasAfinadas={cordasAfinadas}
-        aoTravar={setCordaTravada}
+        aoTravar={aoTravar}
       />
 
       <Controles
@@ -201,15 +229,17 @@ export default function Afinador() {
 
       <div className="flex flex-wrap gap-2">
         <Botao
-          variante="secundario"
+          variante={referencia.tocando ? 'primario' : 'secundario'}
           className="flex-1"
           disabled={!cordaAlvo}
-          onPointerDown={() => referencia.tocar(cordaAlvo)}
-          onPointerUp={referencia.parar}
-          onPointerLeave={referencia.parar}
-          onPointerCancel={referencia.parar}
+          aria-pressed={!!referencia.tocando}
+          onClick={() => referencia.alternar(cordaAlvo)}
         >
-          {cordaAlvo ? `Ouvir ${cordaAlvo.nome}` : 'Ouvir referência'}
+          {referencia.tocando
+            ? `Parar ${cordaAlvo?.nome ?? 'som'}`
+            : cordaAlvo
+              ? `Ouvir ${cordaAlvo.nome}`
+              : 'Ouvir referência'}
         </Botao>
         <Botao variante="secundario" onClick={reiniciarProgresso}>
           Recomeçar
