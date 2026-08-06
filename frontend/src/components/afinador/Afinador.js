@@ -17,6 +17,7 @@ import Botao from '@/components/ui/Botao';
 import { useDeteccaoAltura } from '@/hooks/useDeteccaoAltura';
 import { ESTADO, useMicrofone } from '@/hooks/useMicrofone';
 import { usePreferencias } from '@/hooks/usePreferencias';
+import { useTelaAcesa } from '@/hooks/useTelaAcesa';
 import { useTomReferencia } from '@/hooks/useTomReferencia';
 import { buscarInstrumento, cordasDaAfinacao } from '@/lib/instrumentos';
 import { descreverLeitura } from '@/lib/pitch/leitura';
@@ -40,6 +41,10 @@ export default function Afinador() {
 
   const microfone = useMicrofone();
   const referencia = useTomReferencia();
+
+  // Afinar demora mais que o apagamento automático da tela, e as mãos estão no
+  // instrumento — tocar na tela para reacender é o que não dá para fazer.
+  useTelaAcesa(microfone.ativo);
   const mostradorRef = useRef(null);
   const anuncioRef = useRef(null);
   const ultimoAnuncioMs = useRef(0);
@@ -130,10 +135,22 @@ export default function Afinador() {
     [atualizar],
   );
 
-  const aoIniciar = useCallback(
-    () => microfone.iniciar(instrumento.perfil),
-    [microfone, instrumento],
-  );
+  /**
+   * Ligar o microfone sempre começa uma sessão limpa.
+   *
+   * Sem isto, desligar e ligar de novo trazia de volta as cordas marcadas como
+   * afinadas e a corda travada da sessão anterior — o afinador afirmando algo
+   * sobre um instrumento que talvez nem seja o mesmo, sem ter ouvido nada desde
+   * então. Vale também para quando a captura cai sozinha por aba oculta (FR-14).
+   *
+   * O que **não** é zerado: instrumento, afinação e diapasão. Esses são
+   * preferências e existem justamente para sobreviver entre sessões (FR-11,
+   * FR-12) — o que se perde é o progresso, não a configuração.
+   */
+  const aoIniciar = useCallback(() => {
+    reiniciarProgresso();
+    return microfone.iniciar(instrumento.perfil);
+  }, [microfone, instrumento, reiniciarProgresso]);
 
   const cordaAlvo = useMemo(
     () => cordas.find((c) => c.id === (cordaTravada ?? leitura.corda?.id)) ?? null,

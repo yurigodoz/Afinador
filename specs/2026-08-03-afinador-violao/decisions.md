@@ -253,6 +253,74 @@ captação: se o microfone do aparelho entrega 30–40 Hz com nível útil.
 roteiro em `DEPLOY.md`. Se reprovar, os presets de baixo saem do ar sem afetar o violão — eles são
 dados, não código compartilhado.
 
+### D22 — Correção de erro de oitava no YIN
+**Decisão:** depois de achar o período, o detector investiga se o **dobro** dele explica melhor o
+sinal, e nesse caso adota o dobro. Dois parâmetros governam a decisão: `FATOR_OITAVA = 0,2` e
+`LIMIAR_SUSPEITA = 0,005`.
+
+**Motivo (relatado por Yuri, com vídeo, 2026-08-04):** afinar o E2 do violão ficou ruim — a leitura
+pulava entre **E2 e E3**, que é exatamente o dobro. Ele perguntou se os filtros tinham mudado. Não
+tinham: highpass, lowpass e notches seguem iguais. A única mudança no caminho de detecção tinha sido
+a porta de silêncio (D19), e a investigação mostrou que ela não era a causa.
+
+**Causa raiz, isolada por experimento:** microfone de celular capta mal 82 Hz, e dependendo de onde a
+corda é tocada a **3ª parcial some**. Sobram as parciais pares, que se repetem na *metade* do
+período. O sinal fica genuinamente periódico em τ/2 — o YIN acerta a matemática e erra a nota. A
+normalização cumulativa não protege contra isso: ela existe para evitar o erro **oposto** (escolher
+múltiplos do período) e portanto favorece o τ menor.
+
+**Como a decisão é tomada — medido, não arbitrado:**
+
+| Sinal | `d'(τ)` | `d'(2τ)` | razão | conclusão |
+|---|---|---|---|---|
+| E2, fundamental 15%, 3ª ausente | 0,0352 | 0,0012 | **0,03** | corrigir |
+| E2, fundamental 8%, 3ª ausente | 0,0106 | 0,0012 | **0,11** | corrigir |
+| E3 legítimo | 0,0005 | 0,0002 | **0,39** | manter |
+| E2, fundamental 3% | 0,0017 | 0,0012 | **0,67** | não corrigível |
+
+O discriminante não é a razão sozinha: é o **valor absoluto** de `d'(τ)`. Num E3 verdadeiro o período
+achado explica o sinal quase perfeitamente e o dobro não melhora muito, porque em sinal periódico
+todo múltiplo do período também é período. No E2 mal captado o período achado é apenas razoável e o
+dobro é uma ordem de grandeza melhor.
+
+**`LIMIAR_SUSPEITA` foi acrescentado depois de uma regressão real:** sem ele, uma **senoide pura** de
+D3 virava D2. Os dois vales valiam ~1e-8 e a razão entre eles decidia no último dígito de ponto
+flutuante. Só se investiga oitava quando o casamento é medíocre.
+
+**Limite conhecido e aceito:** com a fundamental abaixo de ~5% da 2ª parcial (razão 0,67) o sinal é
+**indistinguível** da oitava acima — nenhum limiar separa esse caso do E3 legítimo (0,39) sem
+quebrar a detecção de notas verdadeiras. É ambiguidade do sinal, não falha de implementação.
+
+**Consequência:** quatro testes novos em `yin.test.js`, incluindo o caso oposto (notas legítimas não
+podem descer de oitava) e a senoide pura. A correção também beneficia o baixo, cuja fundamental é
+naturalmente fraca — verificado nas cordas mais graves dos três instrumentos.
+
+### D23 — Porta de silêncio revertida para −50 dBFS (anula D19)
+**Decisão:** `LIMIAR_SILENCIO_DBFS` volta de −55 para **−50 dBFS**.
+
+**Razão — e é sobre método, não sobre o número.** O D19 baixou o limiar para acompanhar a nota por
+mais tempo no decaimento. O raciocínio era coerente e apoiado em medições reais, mas resolvia um
+problema **previsto, nunca observado**: o usuário havia relatado *níveis*, não um sintoma. E o valor
+de −50 era justamente o que estava em uso quando ele validou o afinador contra um afinador de
+referência.
+
+Quando um sintoma real apareceu depois (erro de oitava no E2), a primeira pergunta dele foi "por que
+você mexeu na porta de silêncio?" — e a pergunta era boa. **Trocar um parâmetro validado por causa de
+uma previsão adicionou uma variável à investigação sem necessidade.** A causa acabou sendo outra
+(D22), mas isso só ficou claro depois de gastar tempo descartando esta.
+
+**Nota sobre interação com D22:** a −55 dBFS entram mais quadros marginais, de baixa relação
+sinal/ruído — exatamente os que têm `d'(τ)` medíocre e portanto ficam elegíveis à correção de
+oitava. Não foi possível reproduzir isso em sinal sintético, mas a interação é plausível e é mais um
+motivo para voltar ao valor validado antes de seguir ajustando.
+
+**Consequência:** com −50 dBFS sobram 25 dB de margem sobre o piso de ruído medido e 30 dB de
+decaimento tolerado na corda mais fraca — os testes que travam essas margens continuam passando. A
+análise que motivou os −55 segue registrada em D19 e pode ser retomada **se o corte no decaimento for
+observado de verdade**.
+
+**Regra que fica:** parâmetro validado em campo só muda com sintoma relatado, não com previsão.
+
 ### D14 — Sem integração com o Bandapp nesta versão
 **Decisão:** o afinador é um site próprio em `afinador.godoz.dev.br`; nenhuma rota, componente ou
 dependência compartilhada com o Bandapp.

@@ -120,6 +120,9 @@ export function criarDetector({ tamanho, sampleRate, fmin, fmax, limiar = LIMIAR
       // Nenhum vale convincente: ruído, silêncio ou som sem altura definida.
       if (melhorTau === -1) return null;
 
+      // 3b. Correção de oitava.
+      melhorTau = corrigirOitava(normalizada, melhorTau, tauMax);
+
       // 4. Interpolação parabólica pelos vizinhos do mínimo.
       //    A 12 kHz um período do B0 tem 389 amostras — degraus de τ inteiro
       //    valem ~4,5 cents. É este passo que entrega o requisito de 1 cent.
@@ -130,6 +133,88 @@ export function criarDetector({ tamanho, sampleRate, fmin, fmax, limiar = LIMIAR
       return resultado;
     },
   };
+}
+
+/**
+ * Quanto melhor o vale do período dobrado precisa ser para o dobro ser aceito
+ * como o período verdadeiro. Medido, não arbitrado — ver `corrigirOitava`.
+ */
+const FATOR_OITAVA = 0.2;
+
+/**
+ * Só faz sentido suspeitar de erro de oitava se o período encontrado for um
+ * casamento **medíocre**. Quando `d'(τ)` já é praticamente zero — senoide pura,
+ * nota limpa e bem captada — o período achado explica o sinal por completo, e
+ * comparar dois valores minúsculos vira ruído de ponto flutuante.
+ *
+ * Sem este piso a correção levava uma senoide pura de D3 para D2: ambos os vales
+ * valiam ~1e-8, e a razão entre eles decidia no último dígito.
+ */
+const LIMIAR_SUSPEITA = 0.005;
+
+/** Quantas vezes seguidas a correção pode dobrar o período. */
+const MAX_CORRECOES = 2;
+
+/**
+ * Corrige erro de oitava para cima.
+ *
+ * **O problema.** Uma corda grave captada por microfone de celular pode chegar
+ * com a fundamental fraquíssima. Se, além disso, a 3ª parcial for fraca — o que
+ * depende de onde a corda foi tocada —, sobram as parciais **pares**, que se
+ * repetem na metade do período. O sinal é então genuinamente periódico em τ/2, e
+ * o YIN acerta a matemática enquanto erra a nota: reporta E3 quando o violonista
+ * tocou E2. Isso foi filmado em uso real, com a leitura oscilando entre as duas.
+ *
+ * **Por que a normalização cumulativa não basta.** Ela protege contra o erro
+ * oposto (escolher um múltiplo do período, oitava abaixo) penalizando τ grandes.
+ * Contra o erro para cima ela não ajuda — pelo contrário, favorece o τ menor.
+ *
+ * **O discriminante.** Não é a razão entre os vales sozinha, e sim o **valor
+ * absoluto** de `d'(τ)`. Medições com sinais sintéticos:
+ *
+ * | Caso                          | d'(τ)  | d'(2τ) | razão |
+ * |-------------------------------|--------|--------|-------|
+ * | E2 com fundamental fraca e 3ª ausente | 0,0352 | 0,0012 | 0,03 |
+ * | E3 legítimo                   | 0,0005 | 0,0002 | 0,39 |
+ *
+ * Num E3 de verdade o período achado explica o sinal quase perfeitamente, e o
+ * dobro dele não melhora muito — porque num sinal periódico *todo* múltiplo do
+ * período também é período. Já no E2 mal captado, o período achado é um
+ * casamento apenas razoável e o dobro é uma ordem de grandeza melhor. É essa
+ * desproporção que denuncia a oitava errada.
+ *
+ * A janela de busca em torno de 2τ existe por causa da inarmonicidade: em corda
+ * real a 2ª parcial fica um pouco acima do dobro exato, então o vale não cai
+ * exatamente em 2τ.
+ */
+function corrigirOitava(valores, tauInicial, tauMax) {
+  let tau = tauInicial;
+
+  for (let correcao = 0; correcao < MAX_CORRECOES; correcao += 1) {
+    // Casamento já quase perfeito: não há oitava a corrigir.
+    if (valores[tau] <= LIMIAR_SUSPEITA) break;
+
+    const alvo = tau * 2;
+    if (alvo > tauMax) break;
+
+    const janela = Math.max(2, Math.round(tau * 0.03));
+    const inicio = Math.max(1, alvo - janela);
+    const fim = Math.min(tauMax, alvo + janela);
+
+    let melhor = -1;
+    let valorMelhor = Infinity;
+    for (let t = inicio; t <= fim; t += 1) {
+      if (valores[t] < valorMelhor) {
+        valorMelhor = valores[t];
+        melhor = t;
+      }
+    }
+
+    if (melhor === -1 || valorMelhor >= valores[tau] * FATOR_OITAVA) break;
+    tau = melhor;
+  }
+
+  return tau;
 }
 
 /**

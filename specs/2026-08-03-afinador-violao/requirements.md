@@ -156,6 +156,18 @@ detecção durante a emissão para não medir o próprio tom.
 shall** liberar as trilhas do microfone e suspender o `AudioContext`, apagando o indicador de
 gravação do navegador.
 
+### FR-16: Tela acesa durante a afinação
+**Priority:** Medium
+
+**While** o afinador estiver capturando áudio, **the system shall** solicitar ao navegador que
+mantenha a tela acesa, repetindo o pedido ao voltar de segundo plano, e liberar a trava ao encerrar
+a captura.
+
+> Afinar seis cordas leva mais que o tempo de apagamento automático da maioria dos celulares, e as
+> mãos estão ocupadas com o instrumento — tocar na tela para reacendê-la é justamente o que não dá
+> para fazer. Onde a API não existir, a degradação é silenciosa: a tela apagar é incômodo, não
+> impedimento.
+
 ### FR-15: Layout responsivo
 **Priority:** High
 

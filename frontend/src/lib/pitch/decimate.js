@@ -73,24 +73,25 @@ export function nivelDbfs(buffer) {
 /**
  * Limiar da porta de silêncio (FR-4), em dBFS.
  *
- * Calibrado com medição real (decisions.md D19), não chutado:
+ * Referência das medições em campo (decisions.md D19):
  *
  * - Piso de ruído do celular em repouso: **−75 dBFS**
  * - Pico ao tocar as cordas: **−20 a −11 dBFS**, variando por corda
  *
- * A −55 dBFS ficam 20 dB de margem sobre o ruído de fundo e 35 dB de decaimento
- * tolerado na corda mais fraca — uma nota dedilhada perde tipicamente 20 a 30 dB
- * nos primeiros segundos, então ela continua sendo lida enquanto o usuário gira a
- * tarraxa. O valor original da spec (−50) cortava a nota cedo demais; descer
- * mais, para −65, deixaria só 10 dB sobre o ruído e faria a sala entrar como
- * sinal.
+ * A −50 dBFS ficam 25 dB de margem sobre o ruído de fundo e 30 dB de decaimento
+ * tolerado na corda mais fraca.
  *
- * Em ambiente barulhento (ensaio, bar) o piso sobe e um limiar fixo não basta.
- * A segunda linha de defesa é a `clarity` do YIN, que rejeita o que não tem
- * altura definida. Se o teste em campo mostrar que não basta, o passo seguinte é
- * estimar o piso em tempo real — não antecipado aqui por falta de evidência.
+ * **Este valor já foi −55 e voltou para −50** (decisions.md D23). A mudança para
+ * −55 tinha sido feita para acompanhar a nota por mais tempo no decaimento — um
+ * problema previsto, nunca observado. O valor de −50 é o que estava em uso
+ * quando o afinador foi validado contra um afinador de referência. Trocar um
+ * parâmetro validado por causa de uma previsão é como o projeto ganhou uma
+ * variável a mais para investigar quando um sintoma real apareceu.
+ *
+ * Se o corte durante o decaimento aparecer de verdade, a análise que motivou os
+ * −55 continua em D19 e pode ser retomada — agora com sintoma para validar.
  */
-export const LIMIAR_SILENCIO_DBFS = -55;
+export const LIMIAR_SILENCIO_DBFS = -50;
 
 /** @returns {boolean} se o buffer tem sinal suficiente para valer a análise. */
 export function temSinal(buffer, limiarDbfs = LIMIAR_SILENCIO_DBFS) {

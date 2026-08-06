@@ -125,6 +125,137 @@ test('B0 do baixo de 5 cordas (30,87 Hz): erro ≤ 1 cent', () => {
   }
 });
 
+/**
+ * Gera um tom com inarmonicidade, como corda real: a k-ésima parcial fica em
+ * `k·f0·√(1 + B·k²)`, um pouco acima do múltiplo exato.
+ */
+function tomDeCordaReal({ frequencia, amostras, pesos, amplitude = 0.05, B = 0.001 }) {
+  const buffer = new Float32Array(amostras);
+  const soma = pesos.reduce((a, b) => a + b, 0);
+
+  for (let k = 0; k < pesos.length; k += 1) {
+    if (!pesos[k]) continue;
+    const n = k + 1;
+    const f = frequencia * n * Math.sqrt(1 + B * n * n);
+    const w = (2 * Math.PI * f) / SAMPLE_RATE;
+    const fase = Math.random() * Math.PI * 2;
+    const ganho = (amplitude * pesos[k]) / soma;
+    for (let i = 0; i < amostras; i += 1) buffer[i] += ganho * Math.sin(w * i + fase);
+  }
+  return buffer;
+}
+
+test('corda grave sem 3ª parcial não é lida uma oitava acima', () => {
+  // Regressão do bug filmado por Yuri: afinando o E2 do violão, a leitura pulava
+  // entre E2 e E3 (o dobro exato). Causa: microfone de celular capta mal 82 Hz e,
+  // dependendo de onde a corda é tocada, a 3ª parcial some. Sobram as parciais
+  // pares, que se repetem na METADE do período — o sinal é genuinamente periódico
+  // em τ/2, e o YIN acerta a matemática errando a nota.
+  const pipeline = montarPipeline(PERFIL_VIOLAO);
+  const esperado = midiParaFreq(40); // E2
+
+  for (let r = 0; r < 20; r += 1) {
+    const sinal = tomDeCordaReal({
+      frequencia: esperado,
+      amostras: tamanhoDeJanela(PERFIL_VIOLAO, SAMPLE_RATE),
+      pesos: [0.15, 1, 0, 0.5], // fundamental fraca, 3ª ausente
+    });
+
+    const leitura = pipeline.analisar(sinal);
+    assert.ok(leitura !== null, 'não detectou nada');
+
+    const erro = erroEmCents(leitura.frequencia, esperado);
+    assert.ok(
+      Math.abs(erro) < 50,
+      `errou ${erro.toFixed(0)} cents — ${Math.abs(erro + 1200) < 50 ? 'oitava acima' : 'fora'} ` +
+        `(detectou ${leitura.frequencia.toFixed(1)} Hz)`,
+    );
+  }
+});
+
+test('a correção de oitava não desloca notas legítimas para baixo', () => {
+  // O risco oposto: num sinal periódico, TODO múltiplo do período também é
+  // período, então uma correção gulosa reportaria tudo uma oitava abaixo.
+  // Aqui entram notas de verdade — inclusive o E3, que é exatamente o dobro do
+  // E2 e portanto o caso mais fácil de confundir.
+  const pipeline = montarPipeline(PERFIL_VIOLAO);
+
+  for (const midi of [52, 55, 59, 64]) {
+    // E3, G3, B3, E4
+    const esperado = midiParaFreq(midi);
+
+    for (let r = 0; r < 10; r += 1) {
+      for (const pesos of [
+        [1, 0.7, 0.5, 0.3], // fundamental forte
+        [0.2, 1, 0.6, 0.3], // fundamental fraca
+      ]) {
+        const sinal = tomDeCordaReal({
+          frequencia: esperado,
+          amostras: tamanhoDeJanela(PERFIL_VIOLAO, SAMPLE_RATE),
+          pesos,
+        });
+
+        const leitura = pipeline.analisar(sinal);
+        assert.ok(leitura !== null, `${nomeDaNota(midi)}: não detectou`);
+
+        const erro = erroEmCents(leitura.frequencia, esperado);
+        assert.ok(
+          Math.abs(erro) < 50,
+          `${nomeDaNota(midi)} errou ${erro.toFixed(0)} cents — a correção de oitava ` +
+            'está agressiva demais',
+        );
+      }
+    }
+  }
+});
+
+test('senoide pura nunca aciona a correção de oitava', () => {
+  // Numa senoide o vale do período achado vale ~1e-8, e o do dobro também.
+  // Comparar dois valores minúsculos deixa a decisão no ruído de ponto flutuante
+  // — foi assim que uma versão intermediária levou o D3 para D2. Daí o piso de
+  // suspeita: só se investiga oitava quando o casamento é medíocre.
+  const pipeline = montarPipeline(PERFIL_VIOLAO);
+
+  for (const midi of [40, 45, 50, 55, 59, 64]) {
+    const esperado = midiParaFreq(midi);
+    for (let r = 0; r < 5; r += 1) {
+      const leitura = pipeline.analisar(
+        senoide({ frequencia: esperado, amostras: tamanhoDeJanela(PERFIL_VIOLAO, SAMPLE_RATE) }),
+      );
+      const erro = erroEmCents(leitura.frequencia, esperado);
+      assert.ok(Math.abs(erro) <= 1, `${nomeDaNota(midi)} errou ${erro.toFixed(2)} cents`);
+    }
+  }
+});
+
+test('a correção de oitava vale para os graves do baixo', () => {
+  // O baixo tem fundamental naturalmente fraca — é onde este erro mais aparece.
+  for (const instrumento of INSTRUMENTOS) {
+    if (!instrumento.id.startsWith('baixo')) continue;
+
+    const pipeline = montarPipeline(instrumento.perfil);
+    const midi = Math.min(...instrumento.afinacoes.flatMap((a) => a.cordas));
+    const esperado = midiParaFreq(midi);
+
+    for (let r = 0; r < 10; r += 1) {
+      const sinal = tomDeCordaReal({
+        frequencia: esperado,
+        amostras: tamanhoDeJanela(instrumento.perfil, SAMPLE_RATE),
+        pesos: [0.15, 1, 0, 0.5],
+      });
+
+      const leitura = pipeline.analisar(sinal);
+      assert.ok(leitura !== null, `${instrumento.id}: não detectou`);
+
+      const erro = erroEmCents(leitura.frequencia, esperado);
+      assert.ok(
+        Math.abs(erro) < 50,
+        `${instrumento.id} ${nomeDaNota(midi)} errou ${erro.toFixed(0)} cents`,
+      );
+    }
+  }
+});
+
 test('tom com ruído somado ainda fica dentro de 3 cents', () => {
   const pipeline = montarPipeline(PERFIL_VIOLAO);
   const esperado = midiParaFreq(50); // D3 = 146,83 Hz

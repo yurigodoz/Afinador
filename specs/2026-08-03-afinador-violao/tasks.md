@@ -490,6 +490,20 @@ disponível, validar o B0.
 >   verifica por comportamento que a confirmação segue em 700 ms, para o primeiro teste não comparar
 >   com um número desatualizado.
 >
+> **Tela acesa durante a afinação (FR-16, pedido por Yuri em 2026-08-04):** `useTelaAcesa` usa a
+> Screen Wake Lock API enquanto a captura está ligada. Dois detalhes que fazem a diferença entre
+> funcionar e quase funcionar: o navegador **solta a trava sozinho** quando a aba sai de vista, então
+> é preciso repedir no `visibilitychange`; e o pedido pode ser **recusado** pelo sistema (bateria
+> baixa, economia de energia), o que não é erro — o afinador segue funcionando sem segurar a tela.
+> Requer contexto seguro, que o projeto já exige (D9). Safari do iOS suporta a partir do 16.4.
+>
+> **Sessão limpa ao ligar o microfone (Yuri, 2026-08-04):** desligar e ligar de novo trazia de volta
+> as cordas marcadas como afinadas e a corda travada da sessão anterior — o afinador afirmando algo
+> sobre um instrumento que talvez nem fosse o mesmo, sem ter ouvido nada desde então. Agora `iniciar`
+> zera o progresso. Vale também quando a captura cai sozinha por aba oculta (FR-14).
+> **Preferências não são zeradas:** instrumento, afinação e diapasão existem para sobreviver entre
+> sessões (FR-11, FR-12). O que se perde é o progresso, não a configuração.
+>
 > **Mantido de propósito:** o botão "Ouvir referência" fica **desabilitado enquanto nenhuma corda
 > está selecionada** — é preciso tocar uma corda ou travá-la na lista para habilitar. Levantei isso
 > como possível melhoria (o caso natural seria ouvir a nota *antes* de conseguir tirá-la) e o usuário
