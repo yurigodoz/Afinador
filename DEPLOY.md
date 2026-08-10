@@ -96,7 +96,15 @@ cd frontend && npm ci && npm run build
 pm2 restart afinador-web
 ```
 
-O nginx cacheia as páginas por 10 minutos; para ver a mudança na hora, limpe o cache ou espere.
+O nginx não cacheia nada (`decisions.md` D25), então a mudança aparece assim que o PM2 reinicia.
+
+**Atenção ao app instalado.** Quem adicionou o afinador à tela inicial roda com service worker: a
+nova versão é baixada em segundo plano e o app **avisa "Nova versão disponível"** com um botão de
+atualizar. A troca não é automática de propósito — substituir o app no meio de uma afinação seria
+pior que esperar. Se quiser forçar durante um teste, basta recarregar duas vezes ou limpar os dados
+do site.
+
+Ao mudar o `sw.js`, incremente a constante `VERSAO` nele: é o que descarta os caches antigos.
 
 ---
 

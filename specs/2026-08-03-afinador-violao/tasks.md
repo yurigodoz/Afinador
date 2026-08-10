@@ -3,11 +3,13 @@
 ## Overview
 
 - **Total Tasks:** 12
-- **Completed:** 9 · **Em execução com o Yuri:** 1 (Task 11 — deploy) · **Pending:** 2 (Tasks 10 e 12,
-  ambas dependem da URL pública)
-- **Estado por wave:** Wave 0 ✅ · Wave 1 ✅ exceto iPhone · Wave 2 ✅ verificada com violão real
-  contra afinador de referência · Wave 3 código pronto, sem baixo real disponível (`decisions.md`
-  D21) · Wave 4 em andamento, com Tasks 10 e 11 invertidas (D20)
+- **Completed:** 10 · **Em execução com o Yuri:** 1 (Task 11 — deploy) · **Pending:** 1 (Task 10 —
+  verificação ampla)
+- **Estado por wave:** Wave 0 ✅ · Wave 1 ✅ exceto Safari do iPhone · Wave 2 ✅ violão conferido
+  contra afinador de referência · Wave 3 ✅ baixo de 4 e de 5 cordas validados em instrumento real ·
+  Wave 4 em andamento, com Tasks 10 e 11 invertidas (D20)
+- **Instrumentos:** os três validados em hardware real. **Risco em aberto:** apenas o Safari do
+  iPhone, que nunca foi testado.
 - **Estratégia de decomposição:** fatiamento vertical por capacidade demonstrável, com um único
   slice horizontal na Wave 0 (scaffolding + módulos puros). O horizontal se justifica porque
   `lib/pitch` é o contrato compartilhado por todas as verticais e concentra o risco algorítmico —
@@ -390,8 +392,13 @@ disponível, validar o B0.
 >   (NFR-6). Virou um botão "Ouvir <nota>" que toca enquanto pressionado, sempre visível e
 >   alcançável por teclado. Desvio deliberado da spec original.
 >
-> **Só o Yuri pode verificar:**
-> 1. Baixo de 4 cordas: as quatro soltas reconhecidas e marcadas (cenário 5).
+> **✅ Baixo de 4 cordas testado em instrumento real e aprovado (Yuri, 2026-08-04)** — cenário 5
+> cumprido. O teste rodou numa versão anterior às mudanças de detecção do mesmo dia (D22 e D23);
+> vale uma passada rápida depois de publicar, embora a correção de oitava tenda a **melhorar** o
+> baixo, cuja fundamental é naturalmente fraca. O de 5 cordas segue com outro amigo (Task 12).
+>
+> **Ainda a verificar:**
+> 1. ~~Baixo de 4 cordas~~ ✅
 > 2. Trocar violão ↔ baixo com o microfone ligado: sem novo prompt, presets mudando, progresso
 >    zerado.
 > 3. Diapasão: mover para 432 Hz e conferir que os alvos descem ~32 cents; recarregar a página e
@@ -490,6 +497,15 @@ disponível, validar o B0.
 >   verifica por comportamento que a confirmação segue em 700 ms, para o primeiro teste não comparar
 >   com um número desatualizado.
 >
+> **🐛 Tom de referência sobrevivia ao desligar o microfone (Yuri, com vídeo, 2026-08-09):** com o
+> tom soando, "Desligar" levava à tela inicial **com o som ainda tocando**. O botão chamava
+> `microfone.parar` e nunca tocava na referência.
+>
+> A correção não foi no botão. `parar` é o **único ponto por onde a captura termina** — botão, aba
+> oculta (FR-14) e desmontagem passam todos por ele —, então `useMicrofone` ganhou um callback
+> `aoParar` que o `Afinador` liga ao `referencia.parar`. Consertar só o botão deixaria o caminho do
+> desligamento automático aberto, e esse é pior: som saindo de um app que o usuário nem está vendo.
+>
 > **Tela acesa durante a afinação (FR-16, pedido por Yuri em 2026-08-04):** `useTelaAcesa` usa a
 > Screen Wake Lock API enquanto a captura está ligada. Dois detalhes que fazem a diferença entre
 > funcionar e quase funcionar: o navegador **solta a trava sozinho** quando a aba sai de vista, então
@@ -539,7 +555,16 @@ disponível, validar o B0.
   - **GIVEN** `pm2 restart afinador-web` **WHEN** executado **THEN** o app sobe na 3007 sem
     colisão com os outros seis apps da máquina.
 
-#### [ ] 12. Validação remota do baixo de 5 cordas
+#### [x] 12. Validação remota do baixo de 5 cordas
+
+> **✅ Aprovado em 2026-08-04.** Com isso os três instrumentos estão validados em hardware real:
+> violão (conferido contra afinador de referência), baixo de 4 e baixo de 5 cordas — inclusive o
+> **B0 a 30,87 Hz**, que era o caso mais difícil de todo o projeto e o que motivou a janela de 170 ms
+> e a decimação por 4 (D4, D11).
+>
+> Se o teste correu pela URL pública, foi na versão anterior às mudanças de detecção do mesmo dia
+> (D22, D23) — vale reconferir o B0 depois de publicar, embora a correção de oitava mire justamente
+> a fundamental fraca que caracteriza essa corda.
 - **Size:** S · **Complexity:** low · **Risk:** medium
 - **Dependencies:** 11
 - **Requirements:** FR-0, FR-11, NFR-1 (cenário 6)

@@ -93,9 +93,23 @@ function desmontarGrafo(nos) {
   }
 }
 
-export function useMicrofone() {
+/**
+ * @param {object} [opcoes]
+ * @param {() => void} [opcoes.aoParar] chamado sempre que a captura é encerrada,
+ *   por qualquer caminho — botão, aba oculta (FR-14) ou desmontagem. Existe para
+ *   que quem produz som junto (o tom de referência) desligue junto: `parar` é o
+ *   único ponto por onde a captura termina, e amarrar aqui evita depender de
+ *   cada chamador lembrar.
+ */
+export function useMicrofone({ aoParar } = {}) {
   const [estado, setEstado] = useState(ESTADO.INICIAL);
   const [erro, setErro] = useState(null);
+
+  // Em ref para o `parar` continuar estável entre renders.
+  const aoPararRef = useRef(aoParar);
+  useEffect(() => {
+    aoPararRef.current = aoParar;
+  }, [aoParar]);
 
   const contextoRef = useRef(null);
   const streamRef = useRef(null);
@@ -147,6 +161,8 @@ export function useMicrofone() {
     perfilRef.current = null;
     setEstado(ESTADO.INICIAL);
     setErro(null);
+
+    aoPararRef.current?.();
   }, []);
 
   /**

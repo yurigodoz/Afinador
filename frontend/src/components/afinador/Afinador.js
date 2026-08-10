@@ -39,8 +39,13 @@ export default function Afinador() {
     [instrumentoId, afinacaoId, a4],
   );
 
-  const microfone = useMicrofone();
   const referencia = useTomReferencia();
+
+  // Encerrar a captura encerra o tom de referência junto. Sem isto, desligar o
+  // microfone com o tom soando deixava o som tocando na tela inicial — e o mesmo
+  // aconteceria no desligamento automático por aba oculta (FR-14), que é pior:
+  // som saindo de um app que o usuário nem está vendo.
+  const microfone = useMicrofone({ aoParar: referencia.parar });
 
   // Afinar demora mais que o apagamento automático da tela, e as mãos estão no
   // instrumento — tocar na tela para reacender é o que não dá para fazer.

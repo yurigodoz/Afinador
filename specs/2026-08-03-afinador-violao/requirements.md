@@ -222,7 +222,7 @@ Revisão visual no navegador antes de escalar o padrão para as demais telas.
 - Backend, contas de usuário, histórico de afinação.
 - Modo polifônico (afinar todas as cordas de um acorde dedilhado de uma vez).
 - Metrônomo, gerador de acordes, gravador.
-- PWA offline instalável — considerado para v2 (`decisions.md` D10).
+- ~~PWA offline instalável~~ — **implementado** em 2026-08-04 (`decisions.md` D24).
 - Integração com o Bandapp — descartada para esta versão (`decisions.md` D14).
 
 ## 5. Acceptance — cenários ponta a ponta

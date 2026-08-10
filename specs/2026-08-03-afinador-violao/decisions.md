@@ -134,7 +134,60 @@ degrada a corda 6; no baixo, cuja tessitura inteira está abaixo da banda da voz
 **Consequência:** Task 11 inclui a verificação; FR-2 detecta e explica o caso em vez de falhar em
 silêncio.
 
+### D24 — PWA instalável e offline (executa o D10)
+**Decisão:** o afinador vira app instalável e funciona sem rede. Manifest, service worker e ícones.
+
+**Por que agora:** o D10 adiou isto não por dificuldade — o app é um caso fácil de offline, já que
+não há backend, nenhuma chamada de rede depois da carga e as preferências vivem no `localStorage`,
+então não há dado a sincronizar nem fila de escrita. O adiamento era por **ciclo de invalidação de
+cache num projeto ainda não validado**. Essa condição deixou de valer: o violão foi conferido contra
+afinador de referência e o baixo de 4 cordas foi aprovado em instrumento real.
+
+**Estratégias de cache, por tipo:**
+
+| Recurso | Estratégia | Por quê |
+|---|---|---|
+| `/_next/static/` | cache primeiro, sem revalidar | o nome tem hash do conteúdo; nunca fica velho |
+| Navegação (páginas) | rede primeiro, cache de reserva | correção chega na próxima visita com rede, e o app abre sem ela |
+| Ícones, manifest | devolve do cache, revalida atrás | mudam raramente e não valem uma espera |
+
+**Sem `skipWaiting` automático.** Trocar o app por baixo de alguém no meio de uma afinação é pior
+que esperar. A página avisa que há versão nova e a troca acontece quando o usuário aceita. Esse
+aviso não é enfeite: num app em cache, sem ele o usuário fica preso numa versão antiga sem saber — e
+neste projeto as correções vêm de teste em instrumento real, então ficar preso significa continuar
+com um bug já resolvido.
+
+**Consequência no nginx:** o `sw.js` passa a ser servido com `no-cache`. O service worker é quem
+decide o que fica guardado no aparelho; se ele próprio vier de um cache, uma correção fica presa até
+esse cache expirar. Ver também D25, que removeu o cache de borda por completo.
+
+### D25 — Sem `proxy_cache` no nginx (revê a Task 11)
+**Decisão:** o `afinador.conf` não usa cache de borda. Só `Cache-Control` para o navegador.
+
+**Razão:** a versão anterior copiava o padrão do `luccare.conf`, que cacheia páginas e assets. Não se
+sustentava aqui, e o sinal de alerta foi ter sido preciso escrever **dois blocos `location` cujo
+único propósito era desfazer o cache** em `/sw.js` e no manifest. Quando uma decisão exige exceções
+para não quebrar as coisas, vale perguntar o que ela estava comprando.
+
+Comprava pouco. São três rotas **estáticas**, pré-renderizadas pelo `next build` — servi-las não custa
+CPU relevante, ao contrário do SSR por usuário do Luccare, que é o motivo de o cache existir lá. Este
+é o processo mais leve da máquina, num app ainda não divulgado.
+
+E cobrava caro em risco: service worker velho num app instalado deixa gente presa numa versão antiga
+sem saber, além da janela de "publiquei e não mudou" a cada deploy.
+
+**O cache que importa continua:** `Cache-Control` no navegador, com `immutable` para os assets com
+hash. É de graça e é onde está o ganho real para quem já visitou o site.
+
+**Consequência:** configuração de 150 para 134 linhas, de 5 para 4 `location`, e de 11 diretivas de
+cache para zero. Se um dia o tráfego justificar, a decisão volta à mesa **com número na mão**.
+
+**Lição, irmã do D23:** copiar um padrão que funciona em outro projeto é tão especulativo quanto
+inventar um. O Luccare cacheia porque tem SSR por usuário; o afinador não tem nada disso.
+
 ### D10 — PWA offline fica para v2
+> **Executado em 2026-08-04 — ver D24.** O que segue registra o motivo do adiamento original.
+
 **Decisão:** sem service worker nem manifesto instalável na v1.
 **Razão:** o afinador é frontend-only e cabe num cache trivial, e o caso de uso (ensaiar sem
 sinal) é real. Mas adiciona ciclo de invalidação de cache a um projeto que ainda não tem a
@@ -242,6 +295,16 @@ achar o endereço e o afinador não funcionar no aparelho dele.
 do que seria em `localhost`.
 
 ### D21 — Perfil de baixo publicado sem validação em instrumento real
+> **✅ Encerrada em 2026-08-04.** Baixo de 4 **e** de 5 cordas validados em instrumento real. O risco
+> que esta decisão assumia — publicar um perfil apoiado só em tons sintéticos — não existe mais.
+>
+> **Ressalva:** o teste rodou numa versão anterior às mudanças de detecção do mesmo dia — antes da
+> correção de erro de oitava (D22) e com a porta de silêncio em −55 dBFS (hoje revertida para −50,
+> D23). O que está validado é o **dado dos presets** e o pipeline em geral; a detecção mudou desde
+> então. A expectativa é de melhora, não de piora: a correção de oitava ataca justamente a
+> fundamental fraca, que é a característica do baixo. Ainda assim, uma passada rápida nas quatro
+> cordas depois de publicar fecharia a lacuna.
+
 **Decisão:** os presets de baixo de 4 e 5 cordas vão ao ar validados apenas por tons sintéticos.
 **Razão:** o usuário não tem baixo disponível, nem de 4 nem de 5 cordas. Segurar o lançamento do
 violão — que está verificado contra um afinador de referência — por causa de um instrumento que não
@@ -343,6 +406,15 @@ entrada de linha é justamente o que daria o sinal mais limpo para o B0 do baixo
 captação por microfone se mostrar ruim (D16), essa carta sobe de prioridade.
 
 ### D16 — Validação do B0 é remota e pós-deploy
+> **✅ Resolvido em 2026-08-04 (Yuri):** o **baixo de 5 cordas foi validado**. Com isso os três
+> instrumentos estão verificados em hardware real, e o risco que esta decisão administrava deixou de
+> existir.
+>
+> **Ponto a confirmar:** se o teste rodou pela URL pública, foi na versão publicada — anterior às
+> mudanças de detecção de 2026-08-04 (D22, D23). A correção de erro de oitava mira exatamente
+> fundamental fraca, que é a assinatura do B0 a 30,87 Hz, então a expectativa é de melhora. Vale uma
+> passada no B0 depois de publicar.
+
 **Decisão:** o baixo de 5 cordas não está disponível localmente. O B0 é validado em duas etapas:
 (a) tom sintético e gerador de tom durante o desenvolvimento — cobre o algoritmo; (b) teste em
 instrumento real por um amigo do usuário, **depois do deploy**, abrindo `afinador.godoz.dev.br`

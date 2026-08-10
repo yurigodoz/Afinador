@@ -10,8 +10,9 @@ em cents e diz se é para apertar ou afrouxar.
 
 ## Estado
 
-Waves 0 a 3 concluídas — o afinador está funcional. **105 testes automatizados**, lint limpo, build
-gerando três rotas estáticas.
+Waves 0 a 3 concluídas — o afinador está funcional e **os três instrumentos foram validados em
+hardware real**. 112 testes automatizados, lint limpo, build gerando as rotas estáticas mais o
+manifest.
 
 | Etapa | Situação |
 |---|---|
@@ -19,7 +20,7 @@ gerando três rotas estáticas.
 | Captura de áudio | ✅ verificado em desktop e Android |
 | Mostrador e cordas | ✅ violão real, conferido contra o afinador do Google |
 | Presets, diapasão, tom de referência | ✅ código pronto |
-| Baixo em instrumento real | ⏳ não testado — só tons sintéticos ([D21](specs/2026-08-03-afinador-violao/decisions.md)) |
+| Baixo de 4 e de 5 cordas | ✅ testados em instrumento real, incluindo o B0 (30,87 Hz) |
 | Safari no iPhone | ⏳ pendente |
 | Deploy | ⏳ arquivos prontos, ver [DEPLOY.md](DEPLOY.md) |
 
@@ -35,6 +36,9 @@ Detalhe por task em [`specs/2026-08-03-afinador-violao/tasks.md`](specs/2026-08-
 - **Tom de referência** por corda; alvos abaixo de 60 Hz soam uma oitava acima, porque alto-falante
   de celular não reproduz 30–40 Hz.
 - **Preferências salvas** entre visitas, no próprio navegador.
+- **Instalável e offline** — dá para adicionar à tela inicial do celular e usar sem rede nenhuma.
+  Fácil de suportar aqui porque não há backend: depois da carga, o afinador não fala com ninguém.
+- **Tela não apaga** durante a afinação, já que as mãos estão no instrumento.
 - **Página `/diagnostico`** — taxa do dispositivo, nível de entrada e parâmetros do perfil ativo.
   Existe para suporte remoto: transforma "não funcionou no meu celular" em dado utilizável.
 
