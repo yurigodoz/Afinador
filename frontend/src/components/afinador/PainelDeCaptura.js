@@ -15,6 +15,7 @@ import PermissaoMicrofone from '@/components/afinador/PermissaoMicrofone';
 import Botao from '@/components/ui/Botao';
 import { ESTADO, useMicrofone } from '@/hooks/useMicrofone';
 import { useNivelDeSinal } from '@/hooks/useNivelDeSinal';
+import DiagnosticoInstalacao from '@/components/afinador/DiagnosticoInstalacao';
 import { INSTRUMENTOS, fatorDeDecimacao, tamanhoDeJanela } from '@/lib/instrumentos';
 
 /** −60 dBFS (silêncio) a 0 dBFS (saturado) mapeados em 0…100%. */
@@ -57,7 +58,14 @@ export default function PainelDeCaptura() {
   );
 
   if (estado !== ESTADO.ATIVO) {
-    return <PermissaoMicrofone estado={estado} erro={erro} aoIniciar={aoIniciar} />;
+    return (
+      <div className="w-full space-y-4">
+        <PermissaoMicrofone estado={estado} erro={erro} aoIniciar={aoIniciar} />
+        {/* Visível sem ligar o microfone: quem investiga instalação não precisa
+            de captura de áudio para isso. */}
+        <DiagnosticoInstalacao />
+      </div>
+    );
   }
 
   const { perfil } = instrumento;
@@ -120,6 +128,8 @@ export default function PainelDeCaptura() {
         <dt>Taxa do dispositivo</dt>
         <dd className="text-right text-texto">{taxa ?? '—'} Hz</dd>
       </dl>
+
+      <DiagnosticoInstalacao />
 
       <Botao variante="secundario" className="w-full" onClick={parar}>
         Desligar o microfone

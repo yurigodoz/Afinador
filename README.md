@@ -39,8 +39,10 @@ Detalhe por task em [`specs/2026-08-03-afinador-violao/tasks.md`](specs/2026-08-
 - **Instalável e offline** — dá para adicionar à tela inicial do celular e usar sem rede nenhuma.
   Fácil de suportar aqui porque não há backend: depois da carga, o afinador não fala com ninguém.
 - **Tela não apaga** durante a afinação, já que as mãos estão no instrumento.
-- **Página `/diagnostico`** — taxa do dispositivo, nível de entrada e parâmetros do perfil ativo.
-  Existe para suporte remoto: transforma "não funcionou no meu celular" em dado utilizável.
+- **Página `/diagnostico`** — taxa do dispositivo, nível de entrada, parâmetros do perfil ativo e
+  sinais de instalabilidade. Existe para suporte remoto: transforma "não funcionou no meu celular"
+  em dado utilizável. **Não há link para ela no site** — é ferramenta de apoio, não parte do uso
+  normal; chega-se digitando o endereço.
 
 ## Como rodar
 
@@ -70,6 +72,12 @@ O Next gera um certificado autoassinado (via mkcert) em `frontend/certificates/`
 esperado — o certificado é seu, não de uma autoridade pública. No Safari: *Mostrar detalhes* →
 *visitar este site*. No Chrome Android: *Avançado* → *Ir para o site*. Depois disso a origem passa a
 contar como segura e o microfone é liberado.
+
+**O que o certificado autoassinado não permite testar:** a **instalação do app**. O Chromium não
+considera instalável uma origem com certificado inválido, mesmo depois de você prosseguir pelo aviso
+— e o mesmo erro costuma impedir o registro do service worker. Ou seja, PWA e offline só se validam
+no domínio público, com certificado de verdade. A página `/diagnostico` mostra esses sinais
+(contexto seguro, service worker, convite do navegador) para não ser preciso adivinhar.
 
 Se o iOS recusar mesmo depois de passar pelo aviso, o caminho definitivo é instalar a autoridade
 raiz do mkcert no aparelho: envie o `rootCA.pem` (o caminho sai de `mkcert -CAROOT`) para o iPhone,

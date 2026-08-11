@@ -9,12 +9,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import ConviteInstalacao from '@/components/afinador/ConviteInstalacao';
 import Controles from '@/components/afinador/Controles';
 import ListaCordas from '@/components/afinador/ListaCordas';
 import Mostrador from '@/components/afinador/Mostrador';
 import PermissaoMicrofone from '@/components/afinador/PermissaoMicrofone';
 import Botao from '@/components/ui/Botao';
 import { useDeteccaoAltura } from '@/hooks/useDeteccaoAltura';
+import { useInstalacao } from '@/hooks/useInstalacao';
 import { ESTADO, useMicrofone } from '@/hooks/useMicrofone';
 import { usePreferencias } from '@/hooks/usePreferencias';
 import { useTelaAcesa } from '@/hooks/useTelaAcesa';
@@ -50,6 +52,8 @@ export default function Afinador() {
   // Afinar demora mais que o apagamento automático da tela, e as mãos estão no
   // instrumento — tocar na tela para reacender é o que não dá para fazer.
   useTelaAcesa(microfone.ativo);
+
+  const instalacao = useInstalacao();
   const mostradorRef = useRef(null);
   const anuncioRef = useRef(null);
   const ultimoAnuncioMs = useRef(0);
@@ -186,27 +190,39 @@ export default function Afinador() {
   );
 
   if (microfone.estado !== ESTADO.ATIVO) {
-    // Os controles só fazem sentido no estado inicial, onde escolher o
-    // instrumento antes de ligar o microfone evita refazer o grafo depois.
-    //
-    // Em erro e enquanto se pede permissão eles saem da tela: a única ação útil
-    // ali é destravar o acesso ao microfone, e oferecer seletores de afinação
-    // junto dilui essa mensagem — sugere que há algo a configurar quando não há.
-    const podeConfigurar = microfone.estado === ESTADO.INICIAL;
+    /*
+     * A tela inicial tem uma função só: começar a afinar.
+     *
+     * Instrumento, afinação e diapasão ficam apenas na tela de afinação. Uma
+     * versão anterior os mostrava aqui também, com o argumento de que escolher
+     * antes evitaria refazer o grafo de áudio — mas refazer é barato e já
+     * acontece sem reabrir a permissão, então era otimização de algo que não
+     * custava nada, paga com um bloco a mais numa tela que precisa ser direta.
+     *
+     * As preferências persistem entre sessões: quem afina baixo abre já em
+     * baixo, sem precisar escolher nada antes de começar.
+     */
+    const telaInicial = microfone.estado === ESTADO.INICIAL;
 
     return (
       <div className="w-full space-y-4">
-        <PermissaoMicrofone estado={microfone.estado} erro={microfone.erro} aoIniciar={aoIniciar} />
-        {podeConfigurar ? (
-          <Controles
-            instrumentoId={instrumentoId}
-            afinacaoId={afinacaoId}
-            a4={a4}
-            aoTrocarInstrumento={aoTrocarInstrumento}
-            aoTrocarAfinacao={aoTrocarAfinacao}
-            aoTrocarDiapasao={aoTrocarDiapasao}
+        {/*
+          Antes do cartão de permissão: a tela inicial dura poucos segundos e
+          quem chega para afinar toca no botão principal na hora — abaixo dele o
+          convite seria invisível na prática.
+
+          Só no estado inicial: em erro, a única ação útil é destravar o
+          microfone, e um convite ali dilui a mensagem.
+        */}
+        {telaInicial && instalacao.convidar ? (
+          <ConviteInstalacao
+            manual={instalacao.manual}
+            aoInstalar={instalacao.instalar}
+            aoDispensar={instalacao.dispensar}
           />
         ) : null}
+
+        <PermissaoMicrofone estado={microfone.estado} erro={microfone.erro} aoIniciar={aoIniciar} />
       </div>
     );
   }

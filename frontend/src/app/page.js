@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import Afinador from '@/components/afinador/Afinador';
 
 export default function Pagina() {
@@ -9,13 +7,11 @@ export default function Pagina() {
         <h1 className="text-xl font-semibold tracking-tight">Afinador</h1>
       </header>
 
+      {/*
+        Sem link para /diagnostico: a página existe para suporte (D16), não para
+        o uso normal. Quem precisa dela digita o endereço.
+      */}
       <Afinador />
-
-      <footer className="text-center">
-        <Link href="/diagnostico" className="text-xs text-texto-fraco underline-offset-4 hover:underline">
-          Diagnóstico
-        </Link>
-      </footer>
     </main>
   );
 }

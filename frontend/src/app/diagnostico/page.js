@@ -5,6 +5,10 @@ import PainelDeCaptura from '@/components/afinador/PainelDeCaptura';
 export const metadata = {
   title: 'Diagnóstico — Afinador',
   description: 'Página de apoio para verificar captação de áudio em um dispositivo.',
+  // Não é conteúdo do site: não há link para cá em lugar nenhum, e indexá-la só
+  // colocaria uma página de suporte técnico entre os resultados de busca de quem
+  // procura um afinador.
+  robots: { index: false, follow: false },
 };
 
 /**
