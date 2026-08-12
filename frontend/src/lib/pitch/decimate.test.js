@@ -95,36 +95,49 @@ test('a média de blocos não desloca a frequência do sinal', () => {
   );
 });
 
-test('a porta de silêncio bate com os níveis medidos em campo (D19)', () => {
-  // Números reais, medidos por Yuri em celular Android e desktop, 48 kHz:
-  //   repouso  −75 dBFS   |   tocando  −20 a −11 dBFS (pico, varia por corda)
-  // A porta precisa deixar o ruído de fora e o sinal passar, com folga nos dois
-  // lados — senão ou o afinador lê a sala, ou perde a nota no meio do decaimento.
-  const PISO_MEDIDO = -75;
-  const PICO_MAIS_FRACO = -20;
+test('a porta de silêncio serve aos dois aparelhos medidos (D27)', () => {
+  // Números reais, medidos por Yuri, 48 kHz. A diferença entre aparelhos é o
+  // ponto: o iPhone entrega o sinal ~25 dB mais fraco que o Android.
+  const APARELHOS = [
+    { nome: 'Android', piso: -75, picoMaisFraco: -20 },
+    { nome: 'iPhone', piso: -80, picoMaisFraco: -40 },
+  ];
 
-  assert.ok(
-    LIMIAR_SILENCIO_DBFS - PISO_MEDIDO >= 15,
-    `limiar ${LIMIAR_SILENCIO_DBFS} dBFS fica a só ${LIMIAR_SILENCIO_DBFS - PISO_MEDIDO} dB ` +
-      'do piso de ruído — a sala entraria como sinal',
-  );
+  for (const { nome, piso, picoMaisFraco } of APARELHOS) {
+    // Acima do piso o bastante para o silêncio não acordar o analisador. Folga
+    // pequena basta: quem rejeita ruído é o limiar do YIN, não esta porta.
+    assert.ok(
+      LIMIAR_SILENCIO_DBFS - piso >= 5,
+      `${nome}: limiar ${LIMIAR_SILENCIO_DBFS} dBFS a só ${LIMIAR_SILENCIO_DBFS - piso} dB ` +
+        'do piso de ruído — o silêncio rodaria o YIN à toa',
+    );
 
-  assert.ok(
-    PICO_MAIS_FRACO - LIMIAR_SILENCIO_DBFS >= 30,
-    `a corda mais fraca fica a só ${PICO_MAIS_FRACO - LIMIAR_SILENCIO_DBFS} dB do limiar — ` +
-      'a nota seria cortada no início do decaimento',
-  );
+    // Abaixo do pico o bastante para acompanhar o decaimento. Uma corda perde
+    // 20 a 30 dB nos primeiros segundos, que é justamente quando o usuário está
+    // girando a tarraxa e precisa da leitura.
+    assert.ok(
+      picoMaisFraco - LIMIAR_SILENCIO_DBFS >= 20,
+      `${nome}: a corda mais fraca fica a só ${picoMaisFraco - LIMIAR_SILENCIO_DBFS} dB do ` +
+        'limiar — a leitura sumiria no início do decaimento',
+    );
+  }
 });
 
 test('temSinal aceita nota tocada e rejeita silêncio', () => {
   const amostras = 2048;
 
-  // −12 dBFS: um pico típico medido em campo.
+  // −12 dBFS: pico típico no Android.
   assert.equal(temSinal(senoide({ frequencia: 110, amostras, amplitude: 0.35 })), true);
 
-  // Silêncio absoluto e ruído bem abaixo do piso.
+  // −40 dBFS: pico típico no iPhone, que é o caso apertado.
+  assert.equal(temSinal(senoide({ frequencia: 110, amostras, amplitude: 0.014 })), true);
+
+  // Nota do iPhone já bem decaída (−60 dBFS): ainda tem de passar.
+  assert.equal(temSinal(senoide({ frequencia: 110, amostras, amplitude: 0.0014 })), true);
+
+  // Silêncio absoluto e sinal abaixo do piso de ruído dos dois aparelhos.
   assert.equal(temSinal(new Float32Array(amostras)), false);
-  assert.equal(temSinal(senoide({ frequencia: 110, amostras, amplitude: 0.0005 })), false);
+  assert.equal(temSinal(senoide({ frequencia: 110, amostras, amplitude: 0.00008 })), false);
 });
 
 test('nivelDbfs distingue silêncio, sinal fraco e sinal forte (FR-4)', () => {

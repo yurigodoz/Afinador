@@ -73,25 +73,31 @@ export function nivelDbfs(buffer) {
 /**
  * Limiar da porta de silêncio (FR-4), em dBFS.
  *
- * Referência das medições em campo (decisions.md D19):
+ * **Esta porta não existe para rejeitar ruído.** Ela poupa CPU: abaixo do limiar
+ * não vale rodar decimação nem YIN. Quem rejeita ruído é o limiar absoluto do
+ * próprio YIN — medido, ruído branco não produz leitura nenhuma em nível algum,
+ * de −15 a −65 dBFS. Entender isso é o que permite abrir a porta com segurança.
  *
- * - Piso de ruído do celular em repouso: **−75 dBFS**
- * - Pico ao tocar as cordas: **−20 a −11 dBFS**, variando por corda
+ * Medições em campo, e a diferença entre aparelhos é enorme (decisions.md D27):
  *
- * A −50 dBFS ficam 25 dB de margem sobre o ruído de fundo e 30 dB de decaimento
- * tolerado na corda mais fraca.
+ * | | Android | iPhone |
+ * |---|---|---|
+ * | Silêncio | −75 dBFS | −80 dBFS |
+ * | Pico ao tocar | −20 a −11 dBFS | **−40 dBFS** |
  *
- * **Este valor já foi −55 e voltou para −50** (decisions.md D23). A mudança para
- * −55 tinha sido feita para acompanhar a nota por mais tempo no decaimento — um
- * problema previsto, nunca observado. O valor de −50 é o que estava em uso
- * quando o afinador foi validado contra um afinador de referência. Trocar um
- * parâmetro validado por causa de uma previsão é como o projeto ganhou uma
- * variável a mais para investigar quando um sintoma real apareceu.
+ * O iPhone entrega o sinal 20 a 29 dB mais fraco. Com o limiar em −50 sobravam
+ * 10 dB até o corte, e como uma nota perde 20 a 30 dB nos primeiros segundos, a
+ * leitura sumia da tela quase imediatamente — e a corda mais aguda, a mais
+ * fraca de todas, não era detectada de jeito nenhum.
  *
- * Se o corte durante o decaimento aparecer de verdade, a análise que motivou os
- * −55 continua em D19 e pode ser retomada — agora com sintoma para validar.
+ * A −65 dBFS: **25 dB de decaimento tolerado** mesmo no pico fraco do iPhone, e
+ * 15 dB de folga sobre o piso de ruído dele (10 dB sobre o do Android). A
+ * detecção sintética se mantém boa até −70, então ainda há margem abaixo.
+ *
+ * Histórico: começou em −50, foi a −55 por previsão e voltou a −50 por falta de
+ * sintoma (D19, D23). Agora desce a −65 **com sintoma medido em aparelho real**.
  */
-export const LIMIAR_SILENCIO_DBFS = -50;
+export const LIMIAR_SILENCIO_DBFS = -65;
 
 /** @returns {boolean} se o buffer tem sinal suficiente para valer a análise. */
 export function temSinal(buffer, limiarDbfs = LIMIAR_SILENCIO_DBFS) {
