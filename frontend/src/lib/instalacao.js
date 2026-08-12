@@ -11,8 +11,8 @@
 
 export const CHAVE_DISPENSA = 'afinador:convite-dispensado-em';
 
-/** Depois de dispensado, só volta a perguntar daqui a duas semanas. */
-export const DIAS_ATE_PERGUNTAR_DE_NOVO = 15;
+/** Depois de dispensado, só volta a perguntar daqui a uma semana. */
+export const DIAS_ATE_PERGUNTAR_DE_NOVO = 7;
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 

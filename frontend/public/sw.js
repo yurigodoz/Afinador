@@ -20,9 +20,39 @@
  * projeto estar validado (decisions.md D10).
  */
 
-const VERSAO = 'afinador-v1';
-const CACHE_ESTATICO = `${VERSAO}-estatico`;
-const CACHE_PAGINAS = `${VERSAO}-paginas`;
+/**
+ * ⚠️  MUDE A CADA DEPLOY que altere os arquivos do app.
+ *
+ * O formato é livre — `v2`, `v1.0.1`, uma data, o hash do commit. O que importa
+ * é ser **diferente do deploy anterior**.
+ *
+ * Duas coisas dependem disto:
+ *
+ * 1. O navegador só instala um service worker novo se este arquivo mudar **byte
+ *    a byte**. Sem alterar a versão, o aviso de "nova versão" não aparece.
+ * 2. O `activate` apaga os caches que não pertencem a esta versão — sem mudar,
+ *    arquivos de builds antigos ficam no aparelho para sempre.
+ *
+ * Quem está online recebe a atualização mesmo sem isto, porque as páginas usam
+ * rede primeiro. O que se perde é o recarregamento limpo e a faxina do cache.
+ */
+const VERSAO = 'v1.0.1';
+
+/** Prefixo de tudo que este app guarda, para não mexer no cache de vizinhos. */
+const PREFIXO = 'afinador-';
+
+const CACHE_ESTATICO = `${PREFIXO}${VERSAO}-estatico`;
+const CACHE_PAGINAS = `${PREFIXO}${VERSAO}-paginas`;
+
+/**
+ * Nomes exatos, e não comparação por prefixo.
+ *
+ * Uma versão anterior apagava tudo que **não começasse** pela versão atual. Isso
+ * quebra com numeração de ponto: saindo de `v1.0.10` para `v1.0.1`, o cache
+ * antigo `afinador-v1.0.10-estatico` começa com `afinador-v1.0.1` e escaparia da
+ * faxina. Comparar por igualdade elimina a ambiguidade seja qual for o formato.
+ */
+const CACHES_DESTA_VERSAO = new Set([CACHE_ESTATICO, CACHE_PAGINAS]);
 
 /** O mínimo para o app abrir sem rede logo depois de instalado. */
 const ESSENCIAIS = [
@@ -51,7 +81,7 @@ self.addEventListener('activate', (evento) => {
       .then((nomes) =>
         Promise.all(
           nomes
-            .filter((nome) => !nome.startsWith(VERSAO))
+            .filter((nome) => nome.startsWith(PREFIXO) && !CACHES_DESTA_VERSAO.has(nome))
             .map((nome) => caches.delete(nome)),
         ),
       )

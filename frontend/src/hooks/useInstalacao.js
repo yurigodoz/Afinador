@@ -44,6 +44,13 @@ function ehIOS() {
 
 const semAssinatura = () => () => {};
 
+/**
+ * No iOS não há sinal do navegador dizendo que dá para instalar — o convite
+ * apareceria no instante em que a página carrega, toda visita. Um respiro curto
+ * deixa a tela assentar antes de pedir alguma coisa.
+ */
+const ATRASO_IOS_MS = 2000;
+
 /*
  * Dispensa guardada, lida como fonte externa — mesmo padrão do `usePreferencias`.
  * Ler `localStorage` num efeito e jogar no estado provoca render em cascata; o
@@ -96,6 +103,13 @@ export function useInstalacao() {
   );
 
   const [promptNativo, setPromptNativo] = useState(null);
+  const [esperaIOSPassou, setEsperaIOSPassou] = useState(false);
+
+  useEffect(() => {
+    if (!ios || instalado) return undefined;
+    const timer = setTimeout(() => setEsperaIOSPassou(true), ATRASO_IOS_MS);
+    return () => clearTimeout(timer);
+  }, [ios, instalado]);
 
   useEffect(() => {
     const aoOferecer = (evento) => {
@@ -113,15 +127,6 @@ export function useInstalacao() {
     };
   }, []);
 
-  const instalar = useCallback(async () => {
-    if (!promptNativo) return false;
-    promptNativo.prompt();
-    const { outcome } = await promptNativo.userChoice;
-    // O evento só pode ser usado uma vez.
-    setPromptNativo(null);
-    return outcome === 'accepted';
-  }, [promptNativo]);
-
   const dispensar = useCallback(() => {
     const agora = Date.now();
     try {
@@ -135,12 +140,27 @@ export function useInstalacao() {
     for (const ouvinte of ouvintesDispensa) ouvinte();
   }, []);
 
+  const instalar = useCallback(async () => {
+    if (!promptNativo) return false;
+    promptNativo.prompt();
+    const { outcome } = await promptNativo.userChoice;
+    // O evento só pode ser usado uma vez.
+    setPromptNativo(null);
+
+    // Recusar o diálogo do próprio navegador é uma resposta tão clara quanto
+    // tocar em "Agora não" — insistir na visita seguinte seria não escutar.
+    if (outcome !== 'accepted') dispensar();
+
+    return outcome === 'accepted';
+  }, [promptNativo, dispensar]);
+
   return {
     instalado,
     convidar: deveConvidar({
       instalado,
       temPromptNativo: promptNativo !== null,
-      ios,
+      // No iOS o convite só entra depois do respiro inicial.
+      ios: ios && esperaIOSPassou,
       dispensadoEm,
     }),
     /** No iOS o convite é instrução, não botão. */

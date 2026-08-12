@@ -88,7 +88,21 @@ No celular, via 4G (fora da rede local):
 2. Afinar as seis cordas de um violão.
 3. Abrir `/diagnostico` e conferir a taxa do dispositivo e o nível de entrada.
 
-## 7. Atualizações
+## 7. Atualizações (com usuários já instalados)
+
+### O procedimento
+
+**1. Antes de publicar, mude a constante `VERSAO` em `frontend/public/sw.js`:**
+
+```js
+const VERSAO = 'v1.0.1';   // era v1.0.0
+```
+
+O formato é livre — `v2`, `v1.0.1`, uma data, o hash do commit. O que importa é ser **diferente do
+deploy anterior**. A limpeza de caches compara nomes por igualdade, então numeração com pontos é
+segura, inclusive em rollback.
+
+**2. Publique:**
 
 ```bash
 cd /home/deploy/Afinador && git pull
@@ -98,13 +112,38 @@ pm2 restart afinador-web
 
 O nginx não cacheia nada (`decisions.md` D25), então a mudança aparece assim que o PM2 reinicia.
 
-**Atenção ao app instalado.** Quem adicionou o afinador à tela inicial roda com service worker: a
-nova versão é baixada em segundo plano e o app **avisa "Nova versão disponível"** com um botão de
-atualizar. A troca não é automática de propósito — substituir o app no meio de uma afinação seria
-pior que esperar. Se quiser forçar durante um teste, basta recarregar duas vezes ou limpar os dados
-do site.
+### O que acontece com quem já tem o app instalado
 
-Ao mudar o `sw.js`, incremente a constante `VERSAO` nele: é o que descarta os caches antigos.
+**A boa notícia:** quem está online recebe a nova versão **mesmo que você esqueça de incrementar a
+`VERSAO`**. As páginas são buscadas com estratégia *rede primeiro*, então cada abertura com internet
+já traz o HTML novo, que por sua vez referencia os arquivos novos.
+
+**Por que incrementar mesmo assim**, então:
+
+- **Dispara o aviso.** O navegador só instala um service worker novo se o arquivo `sw.js` mudar
+  byte a byte. Sem mudança, o "Nova versão disponível" não aparece e o usuário nunca faz o
+  recarregamento limpo.
+- **Limpa o cache antigo.** O `activate` apaga os caches cujo nome não começa pela `VERSAO` atual.
+  Sem incrementar, os arquivos de builds anteriores ficam guardados no aparelho para sempre.
+
+### Quando o usuário recebe
+
+O navegador procura por `sw.js` novo a cada navegação e, no máximo, a cada 24 h. Além disso o app
+**verifica ao voltar para a tela** — um app instalado costuma ser retomado e não reaberto, e sem essa
+checagem alguém poderia ficar dias numa versão antiga sem sinal nenhum.
+
+Encontrada a versão nova, aparece o aviso **"Nova versão disponível"** com botão de atualizar. A
+troca não é automática de propósito: substituir o app no meio de uma afinação seria pior que esperar.
+
+### Forçando durante um teste
+
+Recarregar duas vezes normalmente basta. Se precisar zerar de vez: nas configurações do site, limpar
+dados e desinstalar o app.
+
+### Se você mudar o conjunto de arquivos essenciais
+
+A lista `ESSENCIAIS` no `sw.js` é o que garante o app abrir sem rede logo após instalado. Ao criar
+uma rota nova que deva funcionar offline, acrescente-a ali.
 
 ---
 

@@ -189,6 +189,21 @@ export default function Afinador() {
     [cordas, referencia],
   );
 
+  /*
+   * O convite flutua no rodapé e aparece em qualquer tela.
+   *
+   * Sem espaçamento extra no conteúdo: ele sobrepõe o que estiver embaixo, e o
+   * usuário preferiu assim. É temporário — some ao instalar ou ao dispensar — e
+   * a tela de afinação continua rolável se algo ficar coberto.
+   */
+  const convite = instalacao.convidar ? (
+    <ConviteInstalacao
+      manual={instalacao.manual}
+      aoInstalar={instalacao.instalar}
+      aoDispensar={instalacao.dispensar}
+    />
+  ) : null;
+
   if (microfone.estado !== ESTADO.ATIVO) {
     /*
      * A tela inicial tem uma função só: começar a afinar.
@@ -202,27 +217,10 @@ export default function Afinador() {
      * As preferências persistem entre sessões: quem afina baixo abre já em
      * baixo, sem precisar escolher nada antes de começar.
      */
-    const telaInicial = microfone.estado === ESTADO.INICIAL;
-
     return (
       <div className="w-full space-y-4">
-        {/*
-          Antes do cartão de permissão: a tela inicial dura poucos segundos e
-          quem chega para afinar toca no botão principal na hora — abaixo dele o
-          convite seria invisível na prática.
-
-          Só no estado inicial: em erro, a única ação útil é destravar o
-          microfone, e um convite ali dilui a mensagem.
-        */}
-        {telaInicial && instalacao.convidar ? (
-          <ConviteInstalacao
-            manual={instalacao.manual}
-            aoInstalar={instalacao.instalar}
-            aoDispensar={instalacao.dispensar}
-          />
-        ) : null}
-
         <PermissaoMicrofone estado={microfone.estado} erro={microfone.erro} aoIniciar={aoIniciar} />
+        {convite}
       </div>
     );
   }
@@ -296,6 +294,8 @@ export default function Afinador() {
 
       {/* Equivalente textual do mostrador para leitor de tela (NFR-6). */}
       <p ref={anuncioRef} aria-live="polite" className="sr-only" />
+
+      {convite}
     </div>
   );
 }

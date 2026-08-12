@@ -20,10 +20,25 @@ export default function RegistroServiceWorker() {
 
     let cancelado = false;
 
+    let registroAtual = null;
+
+    /*
+     * App instalado costuma ser **retomado**, não reaberto: o `load` não dispara
+     * de novo e a verificação automática do navegador pode levar até 24 h. Sem
+     * isto, quem instalou ficaria vários dias numa versão antiga sem sinal
+     * nenhum. Uma checagem ao voltar para a tela custa uma requisição
+     * condicional ao `sw.js`.
+     */
+    const aoVoltarParaTela = () => {
+      if (document.visibilityState === 'visible') registroAtual?.update().catch(() => {});
+    };
+
     const registrar = async () => {
       try {
         const registro = await navigator.serviceWorker.register('/sw.js');
         if (cancelado) return;
+        registroAtual = registro;
+        document.addEventListener('visibilitychange', aoVoltarParaTela);
 
         if (registro.waiting) setAguardando(registro.waiting);
 
@@ -50,13 +65,17 @@ export default function RegistroServiceWorker() {
 
     return () => {
       cancelado = true;
+      document.removeEventListener('visibilitychange', aoVoltarParaTela);
     };
   }, []);
 
   if (!aguardando) return null;
 
+  // z-50 e o convite de instalação em z-40: se os dois aparecerem juntos, este
+  // fica por cima. Atualizar é ação sobre o app que já está em uso; instalar
+  // pode esperar a próxima visita.
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-4">
+    <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div
         role="status"
         className="flex items-center gap-3 rounded-xl border border-borda bg-superficie px-4 py-3 text-sm shadow-lg"
